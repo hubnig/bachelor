@@ -1,0 +1,99 @@
+erDiagram
+  USER {
+    Int id PK
+    String email
+    String passwordHash
+    Role role
+    Int bonusPoints
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  PRODUCT {
+    Int id PK
+    String title
+    String? description
+    Float price
+    Float discount
+    DateTime? releaseDate
+    Activation activation
+    Region region
+    Int? publisherId FK
+    Int? developerId FK
+    Int stock
+    Boolean isActive
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  GENRE {
+    Int id PK
+    String name
+  }
+  TAG {
+    Int id PK
+    String name
+  }
+  PUBLISHER {
+    Int id PK
+    String name
+  }
+  DEVELOPER {
+    Int id PK
+    String name
+  }
+  ORDER {
+    Int id PK
+    Int userId FK
+    Float total
+    OrderStatus status
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  ORDER_ITEM {
+    Int id PK
+    Int orderId FK
+    Int productId FK
+    Int quantity
+    Float unitPrice
+    Int? gameKeyId FK
+  }
+  GAME_KEY {
+    Int id PK
+    Int productId FK
+    String key
+    Boolean isSold
+    Int? orderItemId FK
+    DateTime? assignedAt
+    DateTime createdAt
+  }
+  CART_ITEM {
+    Int id PK
+    Int userId FK
+    Int productId FK
+    Int quantity
+    DateTime addedAt
+  }
+  PAYMENT {
+    Int id PK
+    Int orderId FK UQ
+    String method
+    String? transactionId
+    Float amount
+    String status
+    DateTime createdAt
+  }
+
+  USER ||--o{ ORDER : places
+  USER ||--o{ CART_ITEM : has
+  ORDER ||--|{ ORDER_ITEM : contains
+  PRODUCT ||--o{ ORDER_ITEM : included_in
+  PRODUCT ||--o{ GAME_KEY : has
+  ORDER_ITEM ||--|| GAME_KEY : assigned
+  PRODUCT }o--|| PUBLISHER : published_by
+  PRODUCT }o--|| DEVELOPER : developed_by
+  PRODUCT }o--o{ GENRE : "has genres"
+  PRODUCT }o--o{ TAG : "has tags"
+  GENRE ||--o{ PRODUCT : categorized
+  TAG ||--o{ PRODUCT : labeled
+  CART_ITEM }o--|| USER : belongs_to
+  CART_ITEM }o--|| PRODUCT : references
+  PAYMENT ||--|| ORDER : pays

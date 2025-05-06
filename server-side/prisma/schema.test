@@ -1,0 +1,231 @@
+// Prisma schema for a video‑game key e‑commerce store (inspired by GabeStore.ru)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Roles for access control
+enum Role {
+  USER
+  ADMIN
+}
+
+// Order lifecycle
+enum OrderStatus {
+  PENDING    // только создан
+  PAID       // оплачен
+  COMPLETED  // выдан ключ и завершён
+  CANCELED   // отменён
+}
+
+// Способы активации (Steam, Epic, Uplay, etc.)
+enum Activation {
+  STEAM
+  EPIC
+  ORIGIN
+  UPLAY
+  OTHER
+}
+
+// Региональные ограничения ключей
+enum Region {
+  GLOBAL
+  RU
+  CIS
+  EU
+}
+
+// Тип системных требований
+enum RequirementType {
+  MINIMUM
+  RECOMMENDED
+}
+
+model User {
+  id             Int                @id @default(autoincrement())
+  email          String             @unique
+  passwordHash   String
+  role           Role               @default(USER)
+  bonusPoints    Int                @default(0)
+  orders         Order[]            
+  cartItems      CartItem[]         
+  favorites      Favorite[]         
+  reviews        Review[]           
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Product {
+  id               Int                   @id @default(autoincrement())
+  title            String
+  description      String?
+  price            Float
+  discount         Float                 @default(0)
+  releaseDate      DateTime?
+  activation       Activation
+  region           Region
+  publisher        Publisher?            @relation(fields: [publisherId], references: [id])
+  publisherId      Int?
+  developer        Developer?            @relation(fields: [developerId], references: [id])
+  developerId      Int?
+  genres           Genre[]               @relation("ProductGenres")
+  tags             Tag[]                 @relation("ProductTags")
+  stock            Int                   @default(0)
+  isActive         Boolean               @default(true)
+  gameKeys         GameKey[]
+  cartItems        CartItem[]
+  orderItems       OrderItem[]
+  screenshots      Screenshot[]
+  systemRequirements SystemRequirement[]
+  reviews          Review[]
+  favorites        Favorite[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+model Genre {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[] @relation("ProductGenres")
+}
+
+model Tag {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[] @relation("ProductTags")
+}
+
+model Publisher {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[] 
+}
+
+model Developer {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[] 
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  user       User        @relation(fields: [userId], references: [id])
+  userId     Int
+  items      OrderItem[] 
+  total      Float
+  status     OrderStatus @default(PENDING)
+  payment    Payment?    
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model OrderItem {
+  id         Int       @id @default(autoincrement())
+  order      Order     @relation(fields: [orderId], references: [id])
+  orderId    Int
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int       @default(1)
+  unitPrice  Float
+  gameKey    GameKey?  @relation(fields: [gameKeyId], references: [id])
+  gameKeyId  Int?
+}
+
+model GameKey {
+  id           Int        @id @default(autoincrement())
+  product      Product    @relation(fields: [productId], references: [id])
+  productId    Int
+  key          String     @unique
+  isSold       Boolean    @default(false)
+  orderItem    OrderItem? @relation(fields: [orderItemId], references: [id])
+  orderItemId  Int?
+  assignedAt   DateTime?
+  createdAt    DateTime   @default(now())
+}
+
+model CartItem {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int      @default(1)
+  addedAt    DateTime @default(now())
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  order         Order    @relation(fields: [orderId], references: [id])
+  orderId       Int      @unique
+  method        String
+  transactionId String?  
+  amount        Float
+  status        String
+  createdAt     DateTime @default(now())
+}
+
+// Пользовательские отзывы
+model Review {
+  id         Int       @id @default(autoincrement())
+  rating     Int       // оценка, например 1–5
+  text       String?   // текст отзыва
+  user       User      @relation(fields: [userId], references: [id])
+  userId     Int
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  Int
+  createdAt  DateTime  @default(now())
+}
+
+// Скриншоты игры
+model Screenshot {
+  id         Int       @id @default(autoincrement())
+  url        String    // ссылка на изображение
+  product    Product   @relation(fields: [productId], references: [id])
+  productId  Int
+  createdAt  DateTime  @default(now())
+}
+
+// Системные требования
+model SystemRequirement {
+  id             Int             @id @default(autoincrement())
+  type           RequirementType // MINIMUM или RECOMMENDED
+  os             String
+  cpu            String
+  gpu            String
+  ram            String
+  storage        String
+  product        Product         @relation(fields: [productId], references: [id])
+  productId      Int
+}
+
+// Избранное пользователей
+model Favorite {
+  user       User    @relation(fields: [userId], references: [id])
+  userId     Int
+  product    Product @relation(fields: [productId], references: [id])
+  productId  Int
+
+  @@id([userId, productId])
+}
+
+// Many-to-Many relations for genres & tags
+model _ProductGenres {
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  genre     Genre   @relation(fields: [genreId], references: [id])
+  genreId   Int
+  @@id([productId, genreId])
+}
+
+model _ProductTags {
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  tag       Tag     @relation(fields: [tagId], references: [id])
+  tagId     Int
+  @@id([productId, tagId])
+}
